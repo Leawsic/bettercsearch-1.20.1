@@ -1,0 +1,15 @@
+{
+    "required": true,
+    "package": "site.leawsic.bettercsearch.mixin",
+    "compatibilityLevel": "JAVA_17",
+    "mixins": [
+        "MixinCSMixinListener",
+        "MixinCSearcher"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    },
+    "overwrites": {
+        "requireAnnotations": true
+    }
+}

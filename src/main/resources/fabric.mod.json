@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "bettercsearch",
+	"version": "${version}",
+	"name": "BetterCSearch",
+	"description": "Adapt Traveler Backpack to CSearch",
+	"authors": [
+		"Leawsic"
+	],
+	"contact": {
+        "homepage": "https://blog.leawsic.site"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/bettercsearch/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"site.leawsic.bettercsearch.BetterCSearch"
+		],
+        "client": [
+            "site.leawsic.bettercsearch.BetterCSearchClient"
+        ]
+	},
+	"mixins": [
+		"bettercsearch.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}
