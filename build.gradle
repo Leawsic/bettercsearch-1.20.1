@@ -33,9 +33,6 @@ dependencies {
     // traveller backpack and its dependencies
     modImplementation files("libs/travelersbackpack-fabric-1.20.1-9.1.41.jar")
     modImplementation("com.jamieswhiteshirt:reach-entity-attributes:2.4.0")
-
-    // Bountiful
-    modImplementation files("libs/Bountiful-6.0.3+1.20.1-fabric.jar")
 }
 
 processResources {
