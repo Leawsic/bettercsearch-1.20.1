@@ -1,5 +1,6 @@
 package site.leawsic.bettercsearch.util;
 
+import cn.breezeth.ordertocook.block.BoardBlock;
 import cn.breezeth.ordertocook.item.OrderItem;
 import fr.loxoz.csearcher.CSearcher;
 import fr.loxoz.csearcher.compat.CText;
@@ -102,6 +103,9 @@ public class OrderSearchHelper {
             for (ContainedStack cs : results) {
                 Container container = cs.container();
                 if (container == null) continue;
+
+                // 跳过菜单立牌（BoardBlock），这些不是储存食物的容器
+                if (container.getBlock() instanceof BoardBlock) continue;
 
                 matchedPositions.add(container.getPos());
 
