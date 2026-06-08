@@ -117,12 +117,9 @@ public class OrderSearchHelper {
         // 取第一个容器（保存插入顺序）
         Map.Entry<Container, List<CachedStack>> firstEntry = containerMatches.entrySet().iterator().next();
         Container firstContainer = firstEntry.getKey();
-        List<CachedStack> firstStacks = firstEntry.getValue();
 
         // 1. 聚焦第一个容器中所有匹配的订单物品
-        for (CachedStack stack : firstStacks) {
-            visuals.focusStack(stack);
-        }
+        containerMatches.entrySet().iterator().forEachRemaining(containerListEntry -> containerListEntry.getValue().forEach(visuals::focusStack));
 
         // 2. 对第一个容器：白色方框 + 视角转向 + 粒子线
         Vec3d targetVec = Vec3d.ofCenter(firstContainer.getPos());
