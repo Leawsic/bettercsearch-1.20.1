@@ -17,11 +17,12 @@ import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * 处理 OrderToCook 订单物品的搜索逻辑。
@@ -77,10 +78,8 @@ public class OrderSearchHelper {
             return;
         }
 
-        // 搜索每种食物物品，收集匹配的容器
-        Set<BlockPos> matchedPositions = new LinkedHashSet<>();
-        Container firstContainer = null;
-        CachedStack firstCachedStack = null;
+        // 搜索每种食物物品，按容器汇总匹配的物品
+        LinkedHashMap<Container, List<CachedStack>> containerMatches = new LinkedHashMap<>();
 
         for (String key : foodList.getKeys()) {
             Identifier id = Identifier.tryParse(key);
@@ -92,12 +91,15 @@ public class OrderSearchHelper {
             int needed = foodList.getInt(key);
             if (needed <= 0) continue;
 
-            // 创建搜索用的 CachedStack
-            ItemStack sampleStack = new ItemStack(item, Math.min(needed, item.getMaxCount()));
-            CachedStack searchStack = CachedStack.of(sampleStack);
+            // 创建搜索用的 CachedStack（仅物品类型 + 数量，不含显示名等 NBT）
+            CachedStack searchStack = CachedStack.of(new ItemStack(item, Math.min(needed, item.getMaxCount())));
 
-            // 在附近容器中搜索（不跳过满容器）
+            // 先用 CSearcher 的严格模式搜索（匹配显示名、附魔等）
             List<ContainedStack> results = csearcher.searchNearStack(client, searchStack, cache, false);
+            // 若严格模式未找到，用宽松模式再搜一次（忽略改名等 NBT 差异，仅比物品类型）
+            if (results == null || results.isEmpty()) {
+                results = searchNearStackNonStrict(csearcher, client, searchStack, cache);
+            }
             if (results == null || results.isEmpty()) continue;
 
             for (ContainedStack cs : results) {
@@ -107,18 +109,13 @@ public class OrderSearchHelper {
                 // 跳过菜单立牌（BoardBlock），这些不是储存食物的容器
                 if (container.getBlock() instanceof BoardBlock) continue;
 
-                matchedPositions.add(container.getPos());
-
-                // 记录第一件匹配物品的信息用于视角转向
-                if (firstContainer == null) {
-                    firstContainer = container;
-                    firstCachedStack = searchStack;
-                }
+                // 按容器汇总：该容器匹配的食物物品
+                containerMatches.computeIfAbsent(container, k -> new ArrayList<>()).add(searchStack);
             }
         }
 
         // 无匹配结果
-        if (matchedPositions.isEmpty()) {
+        if (containerMatches.isEmpty()) {
             Utils.postMessage(CText.translatable("text.csearcher.no_near_matches"));
             return;
         }
@@ -127,14 +124,57 @@ public class OrderSearchHelper {
 
         VisualsManager visuals = csearcher.getVisualsManager();
 
-        // 1. 处理第一个匹配（高亮 + 转向 + 粒子线 + 物品焦点）
-        //    targetContainerAndStack 内部会调用 blinkBlock + focusStack + lookAt + drawSparksLine
-        csearcher.targetContainerAndStack(client, firstCachedStack, firstContainer);
+        // 取第一个容器（保存插入顺序）
+        Map.Entry<Container, List<CachedStack>> firstEntry = containerMatches.entrySet().iterator().next();
+        Container firstContainer = firstEntry.getKey();
+        List<CachedStack> firstStacks = firstEntry.getValue();
 
-        // 2. 高亮其余所有匹配容器（白色方框闪烁）
-        for (BlockPos pos : matchedPositions) {
-            if (pos.equals(firstContainer.getPos())) continue;
-            visuals.blinkBlock(pos);
+        // 1. 聚焦第一个容器中所有匹配的订单物品
+        for (CachedStack stack : firstStacks) {
+            visuals.focusStack(stack);
         }
+
+        // 2. 对第一个容器：白色方框 + 视角转向 + 粒子线
+        Vec3d targetVec = Vec3d.ofCenter(firstContainer.getPos());
+        visuals.blinkBlock(firstContainer.getPos());
+        if (CSearcher.getConfig().showDirectionLine) {
+            visuals.drawSparksLine(client.player.getCameraPosVec(0), targetVec, client.world);
+        }
+        if (CSearcher.getConfig().lookAtTarget) {
+            Utils.lookAt(client.player, targetVec);
+        }
+
+        // 3. 高亮其余所有匹配容器（白色方框闪烁）
+        for (Container container : containerMatches.keySet()) {
+            if (container == firstContainer) continue;
+            visuals.blinkBlock(container.getPos());
+        }
+    }
+
+    /**
+     * 以非严格模式（只比物品类型，忽略显示名、附魔等 NBT）在缓存中搜索匹配的容器。
+     * 作为 searchNearStack 的 fallback，用于处理物品被改名后搜不到的问题。
+     */
+    private static List<ContainedStack> searchNearStackNonStrict(CSearcher csearcher, MinecraftClient client, CachedStack searchStack, CacheEntry cache) {
+        if (client.player == null || client.world == null) return null;
+        if (cache == null) return null;
+
+        List<ContainedStack> results = new ArrayList<>();
+        int maxDistBlocks = CSearcher.getConfig().searchNearDistance.getBlocks();
+
+        for (Container container : cache.containers.values()) {
+            if (!container.isIn(client.world)) continue;
+            // 距离过滤
+            if (maxDistBlocks > 0 && container.distanceTo(client.player.getPos()) > maxDistBlocks) continue;
+
+            for (CachedStack cached : container.getFlattenContent()) {
+                // 非严格匹配：仅比物品类型，忽略改名、附魔等 NBT 差异
+                if (cached.isSameAs(searchStack, false)) {
+                    results.add(new ContainedStack(container, cached));
+                }
+            }
+        }
+
+        return results;
     }
 }
