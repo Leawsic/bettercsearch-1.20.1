@@ -3,7 +3,7 @@
 	"id": "bettercsearch",
 	"version": "${version}",
 	"name": "BetterCSearch",
-	"description": "Adapt Traveler Backpack to CSearch",
+	"description": "Adapt Traveler Backpack and Order to Cook to CSearch",
 	"authors": [
 		"Leawsic"
 	],
