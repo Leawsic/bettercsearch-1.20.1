@@ -33,6 +33,8 @@ dependencies {
     // traveller backpack and its dependencies
     modImplementation files("libs/travelersbackpack-fabric-1.20.1-9.1.41.jar")
     modImplementation("com.jamieswhiteshirt:reach-entity-attributes:2.4.0")
+    // otc
+    modImplementation files("libs/ordertocook-1.3.2-fabric1.20.1.jar")
 }
 
 processResources {
