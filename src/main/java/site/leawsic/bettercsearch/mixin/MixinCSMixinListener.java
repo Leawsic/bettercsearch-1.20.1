@@ -1,11 +1,10 @@
 package site.leawsic.bettercsearch.mixin;
 
-import com.tiviacz.travelersbackpack.blocks.TravelersBackpackBlock;
 import fr.loxoz.csearcher.CSearcher;
 import fr.loxoz.csearcher.core.CSMixinListener;
 import fr.loxoz.csearcher.core.InteractionHolder;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.screen.ScreenHandler;
@@ -26,7 +25,7 @@ public class MixinCSMixinListener {
     @Inject(method = "onBlockInteract", at = @At("HEAD"), remap = false)
     private void onBlockInteract(ClientPlayerEntity player, BlockHitResult hit, ActionResult result, CallbackInfo ci) {
         Block block = player.getWorld().getBlockState(hit.getBlockPos()).getBlock();
-        boolean isValidContainer = (result == ActionResult.SUCCESS && block instanceof BlockWithEntity) || block instanceof TravelersBackpackBlock;
+        boolean isValidContainer = block instanceof BlockEntityProvider;
         if (isValidContainer) {
             this.a.lastInteract = new InteractionHolder(player.getWorld(), hit.getBlockPos());
 

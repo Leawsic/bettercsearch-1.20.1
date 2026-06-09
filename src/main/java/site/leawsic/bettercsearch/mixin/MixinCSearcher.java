@@ -5,6 +5,7 @@ import com.tiviacz.travelersbackpack.inventory.menu.BackpackBlockEntityMenu;
 import com.tiviacz.travelersbackpack.inventory.menu.BackpackSettingsMenu;
 import fr.loxoz.csearcher.CSearcher;
 import fr.loxoz.csearcher.core.InteractionHolder;
+import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockWithEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -35,7 +36,7 @@ public class MixinCSearcher {
 
     @Inject(method = "isValidContainer", at = @At("HEAD"), cancellable = true, remap = false)
     private static void onIsValidContainer(net.minecraft.block.Block block, CallbackInfoReturnable<Boolean> cir) {
-        if (block instanceof TravelersBackpackBlock) {
+        if (block instanceof BlockEntityProvider) {
             cir.setReturnValue(true);
         }
     }
@@ -49,7 +50,7 @@ public class MixinCSearcher {
         if (inter != null) {
             if (wasOpen || System.currentTimeMillis() - inter.getTime() <= CSearcher.INTERACTION_MAX_TIME) {
                 boolean isTravelersBackpackBlock = inter.getBlockState().getBlock() instanceof TravelersBackpackBlock;
-                if (inter.getBlockState().getBlock() instanceof BlockWithEntity || isTravelersBackpackBlock) {
+                if (inter.getBlockState().getBlock() instanceof BlockWithEntity || isTravelersBackpackBlock || inter.getBlockState().getBlock() instanceof BlockEntityProvider) {
                     if (!(handler instanceof AbstractRecipeScreenHandler)) {
                         ArrayList<ItemStack> list = new ArrayList<>();
                         int fullCount = 0;
