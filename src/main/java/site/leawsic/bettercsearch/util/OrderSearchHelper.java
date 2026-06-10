@@ -10,6 +10,7 @@ import fr.loxoz.csearcher.core.Container;
 import fr.loxoz.csearcher.core.VisualsManager;
 import fr.loxoz.csearcher.util.Utils;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -91,6 +92,11 @@ public class OrderSearchHelper {
             int needed = foodList.getInt(key);
             if (needed <= 0) continue;
 
+            // 如果玩家背包已有足够数量，跳过搜索此项
+            if (countInInventory(client.player.getInventory(), targetItem) >= needed) {
+                continue;
+            }
+
             for (Container container : cache.containers.values()) {
                 if (!container.isIn(client.world)) continue;
                 // 跳过菜单立牌（BoardBlock），这些不是储存食物的容器
@@ -140,5 +146,13 @@ public class OrderSearchHelper {
             if (container == firstContainer) continue;
             visuals.blinkBlock(container.getPos());
         }
+    }
+
+    private static int countInInventory(PlayerInventory inv, Item item) {
+        int count = 0;
+        for (ItemStack s : inv.main) { if (s.getItem() == item) count += s.getCount(); }
+        for (ItemStack s : inv.armor) { if (s.getItem() == item) count += s.getCount(); }
+        if (inv.offHand.get(0).getItem() == item) count += inv.offHand.get(0).getCount();
+        return count;
     }
 }
