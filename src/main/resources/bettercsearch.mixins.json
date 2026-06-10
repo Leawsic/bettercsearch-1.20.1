@@ -4,8 +4,7 @@
     "compatibilityLevel": "JAVA_17",
     "mixins": [
         "MixinCSMixinListener",
-        "MixinCSearcher",
-        "MixinOrderItem"
+        "MixinCSearcher"
     ],
     "injectors": {
         "defaultRequire": 1
