@@ -19,6 +19,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,14 +115,17 @@ public class OrderSearchHelper {
 
         VisualsManager visuals = csearcher.getVisualsManager();
 
-        // 取第一个容器（保存插入顺序）
-        Map.Entry<Container, List<CachedStack>> firstEntry = containerMatches.entrySet().iterator().next();
-        Container firstContainer = firstEntry.getKey();
+        // 按距离排序，让视角优先转向最近的容器
+        List<Map.Entry<Container, List<CachedStack>>> sortedEntries = new ArrayList<>(containerMatches.entrySet());
+        sortedEntries.sort(Comparator.comparingDouble(e -> e.getKey().distanceTo(client.player.getPos())));
 
-        // 1. 聚焦第一个容器中所有匹配的订单物品
-        containerMatches.entrySet().iterator().forEachRemaining(containerListEntry -> containerListEntry.getValue().forEach(visuals::focusStack));
+        Map.Entry<Container, List<CachedStack>> closestEntry = sortedEntries.get(0);
+        Container firstContainer = closestEntry.getKey();
 
-        // 2. 对第一个容器：白色方框 + 视角转向 + 粒子线
+        // 1. 聚焦所有容器中匹配的订单物品
+        sortedEntries.forEach(containerListEntry -> containerListEntry.getValue().forEach(visuals::focusStack));
+
+        // 2. 对最近的容器：白色方框 + 视角转向 + 粒子线
         Vec3d targetVec = Vec3d.ofCenter(firstContainer.getPos());
         visuals.blinkBlock(firstContainer.getPos());
         if (CSearcher.getConfig().showDirectionLine) {
