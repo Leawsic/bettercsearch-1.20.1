@@ -2,6 +2,7 @@ package site.leawsic.bettercsearch;
 
 import cn.breezeth.ordertocook.item.OrderItem;
 import cn.breezeth.ordertocook.item.TakeoutBagItem;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
@@ -84,17 +85,20 @@ public class BetterCSearchClient implements ClientModInitializer {
             if (stack.isEmpty() || !(stack.getItem() instanceof TakeoutBagItem)) return;
 
             NbtCompound tag = stack.getNbt();
-            if (tag == null) return;
-
-            if (!tag.contains("Delivery", NbtCompound.BYTE_TYPE) || !tag.getBoolean("Delivery")) return;
-            if (!tag.contains("delivery_pos", NbtCompound.COMPOUND_TYPE)) return;
+            if (tag == null || !tag.contains("delivery_pos", NbtCompound.COMPOUND_TYPE)) return;
 
             NbtCompound posTag = tag.getCompound("delivery_pos");
             int x = posTag.getInt("x");
             int z = posTag.getInt("z");
 
-            // 从地底延伸到世界高度以上的黄色光束
+            // 从地底延伸到高空的金色光束
             Box beamBox = new Box(x + 0.25, -64, z + 0.25, x + 0.75, client.world.getHeight() + 64, z + 0.75);
+
+            // 设置渲染状态（与 CSearcher BlockBlinker 一致）
+            RenderSystem.disableDepthTest();
+            RenderSystem.disableCull();
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
 
             context.matrixStack().push();
             WorldRenderer.drawBox(
@@ -104,6 +108,10 @@ public class BetterCSearchClient implements ClientModInitializer {
                 1.0f, 0.9f, 0.0f, 0.8f
             );
             context.matrixStack().pop();
+
+            RenderSystem.enableDepthTest();
+            RenderSystem.enableCull();
+            RenderSystem.disableBlend();
         });
     }
 
