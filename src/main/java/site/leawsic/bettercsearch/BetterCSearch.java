@@ -1,7 +1,6 @@
 package site.leawsic.bettercsearch;
 
 import net.fabricmc.api.ModInitializer;
-import site.leawsic.bettercsearch.command.ModCommands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +10,6 @@ public class BetterCSearch implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		ModCommands.register();
 		LOGGER.info("BetterCSearch initialized");
 	}
 }

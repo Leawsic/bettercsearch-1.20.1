@@ -3,7 +3,9 @@ package site.leawsic.bettercsearch;
 import cn.breezeth.ordertocook.item.OrderItem;
 import cn.breezeth.ordertocook.item.TakeoutBagItem;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -19,13 +21,18 @@ import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import site.leawsic.bettercsearch.util.OrderSearchHelper;
 
 import java.util.List;
 
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
+
 public class BetterCSearchClient implements ClientModInitializer {
     private boolean wasSneaking = false;
+    private BlockPos testBeamPos = null;
 
     @Override
     public void onInitializeClient() {
@@ -76,25 +83,22 @@ public class BetterCSearchClient implements ClientModInitializer {
             }
         });
 
-        // 外卖配送指引：手持 TakeoutBagItem 时渲染黄色光束指向顾客位置
+        // 测试指令：/beamtest <x> <z>  设置测试光束位置（不持有外卖包时也可看到）
+        registerBeamCommand();
+
+        // 光束渲染：外卖配送指引 + 测试光束
         WorldRenderEvents.LAST.register(context -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.player == null || client.world == null) return;
 
-            ItemStack stack = client.player.getMainHandStack();
-            if (stack.isEmpty() || !(stack.getItem() instanceof TakeoutBagItem)) return;
+            BlockPos beamTarget = getBlockPos(client);
 
-            NbtCompound tag = stack.getNbt();
-            if (tag == null || !tag.contains("delivery_pos", NbtCompound.COMPOUND_TYPE)) return;
+            if (beamTarget == null) return;
 
-            NbtCompound posTag = tag.getCompound("delivery_pos");
-            int x = posTag.getInt("x");
-            int z = posTag.getInt("z");
-
-            // 从地底延伸到高空的金色光束
+            int x = beamTarget.getX();
+            int z = beamTarget.getZ();
             Box beamBox = new Box(x + 0.25, -64, z + 0.25, x + 0.75, client.world.getHeight() + 64, z + 0.75);
 
-            // 设置渲染状态（与 CSearcher BlockBlinker 一致）
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
             RenderSystem.enableBlend();
@@ -113,6 +117,46 @@ public class BetterCSearchClient implements ClientModInitializer {
             RenderSystem.enableCull();
             RenderSystem.disableBlend();
         });
+    }
+
+    private BlockPos getBlockPos(MinecraftClient client) {
+        BlockPos beamTarget = null;
+
+        // 优先检查外卖包
+        ItemStack stack = client.player.getMainHandStack();
+        if (!stack.isEmpty() && stack.getItem() instanceof TakeoutBagItem) {
+            NbtCompound tag = stack.getNbt();
+            if (tag != null && tag.contains("delivery_pos", NbtCompound.COMPOUND_TYPE)) {
+                NbtCompound posTag = tag.getCompound("delivery_pos");
+                beamTarget = new BlockPos(posTag.getInt("x"), 0, posTag.getInt("z"));
+            }
+        }
+
+        // 其次检查测试坐标
+        if (beamTarget == null) {
+            beamTarget = testBeamPos;
+        }
+        return beamTarget;
+    }
+
+    private void registerBeamCommand() {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("beamtest")
+            .then(argument("x", IntegerArgumentType.integer())
+            .then(argument("z", IntegerArgumentType.integer())
+            .executes(ctx -> {
+                int x = IntegerArgumentType.getInteger(ctx, "x");
+                int z = IntegerArgumentType.getInteger(ctx, "z");
+                testBeamPos = new BlockPos(x, 0, z);
+                ctx.getSource().sendFeedback(Text.literal("Beam set to (" + x + ", " + z + ")"));
+                return 1;
+            })))
+            .then(literal("clear")
+            .executes(ctx -> {
+                testBeamPos = null;
+                ctx.getSource().sendFeedback(Text.literal("Beam cleared"));
+                return 1;
+            }))
+        ));
     }
 
     private static int countItem(PlayerInventory inv, Item item) {
