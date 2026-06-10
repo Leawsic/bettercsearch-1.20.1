@@ -1,10 +1,14 @@
 package site.leawsic.bettercsearch;
 
 import cn.breezeth.ordertocook.item.OrderItem;
+import cn.breezeth.ordertocook.item.TakeoutBagItem;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -14,6 +18,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Box;
 import site.leawsic.bettercsearch.util.OrderSearchHelper;
 
 import java.util.List;
@@ -68,6 +73,37 @@ public class BetterCSearchClient implements ClientModInitializer {
                     recolorLine(lines, item.getName().getString());
                 }
             }
+        });
+
+        // 外卖配送指引：手持 TakeoutBagItem 时渲染黄色光束指向顾客位置
+        WorldRenderEvents.LAST.register(context -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.player == null || client.world == null) return;
+
+            ItemStack stack = client.player.getMainHandStack();
+            if (stack.isEmpty() || !(stack.getItem() instanceof TakeoutBagItem)) return;
+
+            NbtCompound tag = stack.getNbt();
+            if (tag == null) return;
+
+            if (!tag.contains("Delivery", NbtCompound.BYTE_TYPE) || !tag.getBoolean("Delivery")) return;
+            if (!tag.contains("delivery_pos", NbtCompound.COMPOUND_TYPE)) return;
+
+            NbtCompound posTag = tag.getCompound("delivery_pos");
+            int x = posTag.getInt("x");
+            int z = posTag.getInt("z");
+
+            // 从地底延伸到世界高度以上的黄色光束
+            Box beamBox = new Box(x + 0.25, -64, z + 0.25, x + 0.75, client.world.getHeight() + 64, z + 0.75);
+
+            context.matrixStack().push();
+            WorldRenderer.drawBox(
+                context.matrixStack(),
+                context.consumers().getBuffer(RenderLayer.getLines()),
+                beamBox,
+                1.0f, 0.9f, 0.0f, 0.8f
+            );
+            context.matrixStack().pop();
         });
     }
 
