@@ -10,8 +10,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -22,8 +23,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import site.leawsic.bettercsearch.util.OrderSearchHelper;
 
 import java.util.List;
@@ -100,24 +101,53 @@ public class BetterCSearchClient implements ClientModInitializer {
             int z = beamTarget.getZ();
             Vec3d cameraPos = context.camera().getPos();
             int worldHeight = client.world.getHeight() + 64;
-            Box beamBox = new Box(
-                x + 0.25 - cameraPos.getX(), -64 - cameraPos.getY(), z + 0.25 - cameraPos.getZ(),
-                x + 0.75 - cameraPos.getX(), worldHeight - cameraPos.getY(), z + 0.75 - cameraPos.getZ()
-            );
+            float minX = (float)(x + 0.25 - cameraPos.x);
+            float maxX = (float)(x + 0.75 - cameraPos.x);
+            float minY = (float)(-64 - cameraPos.y);
+            float maxY = (float)(worldHeight - cameraPos.y);
+            float minZ = (float)(z + 0.25 - cameraPos.z);
+            float maxZ = (float)(z + 0.75 - cameraPos.z);
 
+            // 直接使用 Tessellator 绕开 RenderLayer 的深度测试设定
+            Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
 
-            context.matrixStack().push();
-            WorldRenderer.drawBox(
-                context.matrixStack(),
-                context.consumers().getBuffer(RenderLayer.getLines()),
-                beamBox,
-                1.0f, 0.9f, 0.0f, 0.8f
-            );
-            context.matrixStack().pop();
+            net.minecraft.client.render.Tessellator tessellator = net.minecraft.client.render.Tessellator.getInstance();
+            BufferBuilder buffer = tessellator.getBuffer();
+            buffer.begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
+
+            // 底面
+            put(buffer, matrix, minX, minY, minZ);
+            put(buffer, matrix, maxX, minY, minZ);
+            put(buffer, matrix, maxX, minY, minZ);
+            put(buffer, matrix, maxX, minY, maxZ);
+            put(buffer, matrix, maxX, minY, maxZ);
+            put(buffer, matrix, minX, minY, maxZ);
+            put(buffer, matrix, minX, minY, maxZ);
+            put(buffer, matrix, minX, minY, minZ);
+            // 顶面
+            put(buffer, matrix, minX, maxY, minZ);
+            put(buffer, matrix, maxX, maxY, minZ);
+            put(buffer, matrix, maxX, maxY, minZ);
+            put(buffer, matrix, maxX, maxY, maxZ);
+            put(buffer, matrix, maxX, maxY, maxZ);
+            put(buffer, matrix, minX, maxY, maxZ);
+            put(buffer, matrix, minX, maxY, maxZ);
+            put(buffer, matrix, minX, maxY, minZ);
+            // 四条垂直线
+            put(buffer, matrix, minX, minY, minZ);
+            put(buffer, matrix, minX, maxY, minZ);
+            put(buffer, matrix, maxX, minY, minZ);
+            put(buffer, matrix, maxX, maxY, minZ);
+            put(buffer, matrix, maxX, minY, maxZ);
+            put(buffer, matrix, maxX, maxY, maxZ);
+            put(buffer, matrix, minX, minY, maxZ);
+            put(buffer, matrix, minX, maxY, maxZ);
+
+            tessellator.draw();
 
             RenderSystem.enableDepthTest();
             RenderSystem.enableCull();
@@ -180,5 +210,9 @@ public class BetterCSearchClient implements ClientModInitializer {
                 return;
             }
         }
+    }
+
+    private static void put(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z) {
+        buffer.vertex(matrix, x, y, z).color(1.0f, 0.9f, 0.0f, 1.0f).next();
     }
 }
