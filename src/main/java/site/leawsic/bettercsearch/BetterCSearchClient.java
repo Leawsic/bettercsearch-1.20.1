@@ -23,6 +23,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import site.leawsic.bettercsearch.util.OrderSearchHelper;
 
 import java.util.List;
@@ -97,7 +98,12 @@ public class BetterCSearchClient implements ClientModInitializer {
 
             int x = beamTarget.getX();
             int z = beamTarget.getZ();
-            Box beamBox = new Box(x + 0.25, -64, z + 0.25, x + 0.75, client.world.getHeight() + 64, z + 0.75);
+            Vec3d cameraPos = context.camera().getPos();
+            int worldHeight = client.world.getHeight() + 64;
+            Box beamBox = new Box(
+                x + 0.25 - cameraPos.getX(), -64 - cameraPos.getY(), z + 0.25 - cameraPos.getZ(),
+                x + 0.75 - cameraPos.getX(), worldHeight - cameraPos.getY(), z + 0.75 - cameraPos.getZ()
+            );
 
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
